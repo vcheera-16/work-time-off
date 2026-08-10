@@ -5,15 +5,17 @@ import com.example.worktimeoff.model.TimeOffRequest;
 import com.example.worktimeoff.model.User;
 import com.example.worktimeoff.service.TimeOffService;
 import com.example.worktimeoff.service.UserService;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/timeoff")
@@ -28,7 +30,10 @@ public class TimeOffController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody CreateTimeOffRequest req, Principal principal) {
+    public ResponseEntity<?> create(@Valid @RequestBody CreateTimeOffRequest req, BindingResult binding, Principal principal) {
+        if (binding.hasErrors()) {
+            return ResponseEntity.badRequest().body(binding.getAllErrors().stream().map(e -> e.getDefaultMessage()).collect(Collectors.toList()));
+        }
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         User u = userService.findByEmail(principal.getName()).orElseThrow();
         try {
@@ -41,6 +46,7 @@ public class TimeOffController {
         }
     }
 
+    // rest unchanged
     @GetMapping
     public ResponseEntity<?> listMine(@RequestParam(name = "mine", defaultValue = "true") boolean mine, Principal principal) {
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

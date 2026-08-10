@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -43,10 +44,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // for initial scaffold we disable CSRF. TODO: enable and wire tokens in frontend
-            .csrf().disable()
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            )
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/", "/index.html", "/static/**", "/api/auth/**", "/favicon.ico").permitAll()
+                .requestMatchers("/", "/index.html", "/static/**", "/api/auth/**", "/api/csrf", "/favicon.ico").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin().disable()

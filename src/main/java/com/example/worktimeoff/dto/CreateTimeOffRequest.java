@@ -1,10 +1,15 @@
 package com.example.worktimeoff.dto;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.time.LocalDate;
 
 public class CreateTimeOffRequest {
+    @NotNull
     private String type;
+    @NotNull
     private LocalDate startDate;
+    @NotNull
     private LocalDate endDate;
     private String partialDay;
 
