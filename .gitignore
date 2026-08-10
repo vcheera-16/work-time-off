@@ -1,0 +1,15 @@
+target/
+*.log
+*.class
+/.idea/
+/.vscode/
+*.iml
+
+# Maven
+.mvn/
+
+# OS
+.DS_Store
+
+# Temporary
+tmp/
