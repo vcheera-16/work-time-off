@@ -25,12 +25,44 @@
 
       <section id="dashboard" style="display:none">
         <h2>Dashboard</h2>
-        <a href="#" id="showRequests">My Requests</a>
+        <div>
+          <a href="#" id="showRequestForm">Request Time Off</a> |
+          <a href="#" id="showRequests">My Requests</a> |
+          <a href="#" id="showTeam" style="display:none">Team Approvals</a>
+        </div>
+
+        <div id="requestFormContainer" style="display:none; margin-top:10px;">
+          <h3>New Time Off Request</h3>
+          <form id="requestForm">
+            <label>Type:
+              <select name="type">
+                <option value="VACATION">Vacation</option>
+                <option value="SICK">Sick</option>
+                <option value="UNPAID">Unpaid</option>
+              </select>
+            </label><br>
+            <label>Start: <input type="date" name="startDate" required></label><br>
+            <label>End: <input type="date" name="endDate" required></label><br>
+            <label>Partial: <select name="partialDay"><option value="">None</option><option value="AM">AM</option><option value="PM">PM</option></select></label><br>
+            <button type="submit">Submit Request</button>
+          </form>
+        </div>
+
         <div id="calendar"></div>
-        <div id="requestsTableContainer" style="display:none">
+        <div id="requestsTableContainer" style="display:none; margin-top:10px;">
           <table id="requestsTable" class="display" style="width:100%">
             <thead>
               <tr><th>ID</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="teamTableContainer" style="display:none; margin-top:10px;">
+          <h3>Team Approvals</h3>
+          <table id="teamTable" class="display" style="width:100%">
+            <thead>
+              <tr><th>ID</th><th>User ID</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody></tbody>
           </table>
