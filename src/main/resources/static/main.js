@@ -1,7 +1,30 @@
 console.log('main.js loaded');
 
+// helper to read cookie value by name
+function readCookie(name) {
+  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return m ? m.pop() : null;
+}
+
+// ensure showError exists so AJAX failures don't crash the script
+function showError(msg) {
+  try {
+    // prefer an in-page error area if available
+    var el = document.getElementById('errorArea');
+    if (el) el.textContent = msg;
+    else console.error(msg);
+  } catch(e) { console.error(msg); }
+  // also show a user alert for immediate feedback
+  try { alert(msg); } catch(e){}
+}
+
 $(function(){
    var currentUser = null;
+
+   function getCsrfHeader() {
+     var t = readCookie('XSRF-TOKEN');
+     return t ? { 'X-XSRF-TOKEN': t } : {};
+   }
 
    // Login form
    $('#loginForm').on('submit', function(e){
@@ -14,6 +37,7 @@ $(function(){
        url: '/api/auth/login',
        method: 'POST',
        contentType: 'application/json',
+       headers: getCsrfHeader(),
        data: JSON.stringify(data)
      }).done(function(resp){
        console.log('login success', resp);
@@ -41,6 +65,7 @@ $(function(){
        url: '/api/timeoff',
        method: 'POST',
        contentType: 'application/json',
+       headers: getCsrfHeader(),
        data: JSON.stringify(payload)
      }).done(function(){
        alert('Request submitted');
@@ -57,13 +82,13 @@ $(function(){
      console.log('approve clicked');
      var id = $(this).data('id');
      if(!confirm('Approve request #' + id + '?')) return;
-     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'APPROVE' }) }).done(function(){ alert('Approved'); $('#showTeam').click(); }).fail(function(){ showError('Failed to approve'); });
+     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', headers: getCsrfHeader(), data: JSON.stringify({ action: 'APPROVE' }) }).done(function(){ alert('Approved'); $('#showTeam').click(); }).fail(function(){ showError('Failed to approve'); });
    });
    $('#teamTable tbody').on('click', 'button.deny', function(){
      console.log('deny clicked');
      var id = $(this).data('id');
      if(!confirm('Deny request #' + id + '?')) return;
-     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'DENY' }) }).done(function(){ alert('Denied'); $('#showTeam').click(); }).fail(function(){ showError('Failed to deny'); });
+     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', headers: getCsrfHeader(), data: JSON.stringify({ action: 'DENY' }) }).done(function(){ alert('Denied'); $('#showTeam').click(); }).fail(function(){ showError('Failed to deny'); });
    });
 
    // On load, check if logged in
