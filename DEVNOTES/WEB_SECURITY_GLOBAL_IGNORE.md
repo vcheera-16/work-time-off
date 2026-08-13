@@ -1,12 +1,9 @@
-# DEVNOTES: Global security ignore
+# DEVNOTES: Global security ignore (REVERTED)
 
-This temporary change configures Spring Security to ignore all requests (web.ignoring()/"/**").
-Use only for local development and debugging. Do NOT merge or enable in production.
+The global ignore (web.ignoring("/**")) was used temporarily for debugging but has been reverted.
+The current configuration ignores only static assets and the H2 console so API endpoints run
+through the Spring Security filter chain and CSRF tokens are generated as expected.
 
-To revert:
-- Restore WebSecurityIgnoreConfig to ignore only static/H2 paths, or remove the file.
-
-To test:
-1) mvn clean package
-2) mvn spring-boot:run -Dspring-boot.run.profiles=h2
-3) Open http://localhost:8080/ and verify main.js loads and H2 console renders.
+If you previously relied on the global ignore for local debugging, do not enable it in
+production. To restore the global ignore for a short debugging session, replace
+WebSecurityIgnoreConfig with the previous version, but remember to revert it afterwards.

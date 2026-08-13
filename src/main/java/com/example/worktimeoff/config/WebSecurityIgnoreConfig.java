@@ -10,10 +10,15 @@ public class WebSecurityIgnoreConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        // WARNING: This ignores ALL requests from the security filter chain.
-        // This is intended as a temporary development/debugging helper only.
+        // Ignore only static assets and the H2 console so the security filter chain still
+        // runs for API endpoints (including /api/csrf) and CSRF tokens can be generated.
         return (web) -> web.ignoring().requestMatchers(
-            new AntPathRequestMatcher("/**")
+            new AntPathRequestMatcher("/h2-console/**"),
+            new AntPathRequestMatcher("/main.js"),
+            new AntPathRequestMatcher("/**/*.js"),
+            new AntPathRequestMatcher("/**/*.css"),
+            new AntPathRequestMatcher("/**/*.map"),
+            new AntPathRequestMatcher("/favicon.ico")
         );
     }
 }
