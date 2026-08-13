@@ -10,13 +10,10 @@ public class WebSecurityIgnoreConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
+        // WARNING: This ignores ALL requests from the security filter chain.
+        // This is intended as a temporary development/debugging helper only.
         return (web) -> web.ignoring().requestMatchers(
-            new AntPathRequestMatcher("/h2-console/**"),
-            new AntPathRequestMatcher("/static/**"),
-            new AntPathRequestMatcher("/**/*.js"),
-            new AntPathRequestMatcher("/**/*.css"),
-            new AntPathRequestMatcher("/**/*.map"),
-            new AntPathRequestMatcher("/favicon.ico")
+            new AntPathRequestMatcher("/**")
         );
     }
 }
