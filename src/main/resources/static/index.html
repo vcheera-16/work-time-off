@@ -1,31 +1,30 @@
 @@
    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
--  <script src="/static/main.js"></script>
-+  <script>
-+    // small helper to read cookie
-+    function readCookie(name) {
-+      const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-+      return v ? v.pop() : null;
-+    }
-+    // ensure CSRF token cookie is created by calling the endpoint
-+    (function(){
-+      fetch('/api/csrf', { credentials: 'same-origin' }).then(()=>{
-+        var token = readCookie('XSRF-TOKEN');
-+        if(token){
-+          // configure jQuery to send CSRF token in header for state-changing requests
-+          $.ajaxSetup({
-+            beforeSend: function(xhr, settings) {
-+              if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(settings.type)) {
-+                xhr.setRequestHeader('X-XSRF-TOKEN', token);
-+              }
-+            },
-+            xhrFields: { withCredentials: true }
-+          });
-+        }
-+      }).catch(()=>{});
-+    })();
-+  </script>
-+  <script src="/static/main.js"></script>
+   <script>
+     // small helper to read cookie
+     function readCookie(name) {
+       const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+       return v ? v.pop() : null;
+     }
+     // ensure CSRF token cookie is created by calling the endpoint
+     (function(){
+       fetch('/api/csrf', { credentials: 'same-origin' }).then(()=>{
+         var token = readCookie('XSRF-TOKEN');
+         if(token){
+           // configure jQuery to send CSRF token in header for state-changing requests
+           $.ajaxSetup({
+             beforeSend: function(xhr, settings) {
+               if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(settings.type)) {
+                 xhr.setRequestHeader('X-XSRF-TOKEN', token);
+               }
+             },
+             xhrFields: { withCredentials: true }
+           });
+         }
+       }).catch(()=>{});
+     })();
+   </script>
+   <script src="/main.js"></script>
  </body>
  </html>

@@ -44,12 +44,12 @@ $(function(){
    $('#teamTable tbody').on('click', 'button.approve', function(){
      var id = $(this).data('id');
      if(!confirm('Approve request #' + id + '?')) return;
-     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'APPROVE' }) }).done(function(){ alert('Approved'); $('#showTeam').click(); }).fail(function(){ showError('Failed to approve'); });
+     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'APPROVE' }) }).done(function(){ alert('Approved'); $('#showTea[...]
    });
    $('#teamTable tbody').on('click', 'button.deny', function(){
      var id = $(this).data('id');
      if(!confirm('Deny request #' + id + '?')) return;
-     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'DENY' }) }).done(function(){ alert('Denied'); $('#showTeam').click(); }).fail(function(){ showError('Failed to deny'); });
+     $.ajax({ url: '/api/timeoff/' + id + '/review', method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'DENY' }) }).done(function(){ alert('Denied'); $('#showTeam').c[...]
    });
 @@
    $.get('/api/auth/me').done(function(user){ showDashboard(user); }).fail(function(){ /* not logged in */ });
