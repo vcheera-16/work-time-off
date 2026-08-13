@@ -3,6 +3,7 @@ package com.example.worktimeoff.config;
 import com.example.worktimeoff.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -43,17 +44,18 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
             .authorizeHttpRequests(authorize -> authorize
+                // Permit GET requests for static resources and h2 console explicitly using AntPathRequestMatcher with method
                 .requestMatchers(
-                    new AntPathRequestMatcher("/"),
-                    new AntPathRequestMatcher("/index.html"),
-                    new AntPathRequestMatcher("/static/**"),
-                    new AntPathRequestMatcher("/**/*.css"),
-                    new AntPathRequestMatcher("/**/*.js"),
-                    new AntPathRequestMatcher("/**/*.map"),
-                    new AntPathRequestMatcher("/**/*.html"),
-                    new AntPathRequestMatcher("/favicon.ico"),
-                    new AntPathRequestMatcher("/h2-console/**"),
-                    new AntPathRequestMatcher("/api/csrf"),
+                    new AntPathRequestMatcher("/", "GET"),
+                    new AntPathRequestMatcher("/index.html", "GET"),
+                    new AntPathRequestMatcher("/static/**", "GET"),
+                    new AntPathRequestMatcher("/**/*.css", "GET"),
+                    new AntPathRequestMatcher("/**/*.js", "GET"),
+                    new AntPathRequestMatcher("/**/*.map", "GET"),
+                    new AntPathRequestMatcher("/**/*.html", "GET"),
+                    new AntPathRequestMatcher("/favicon.ico", "GET"),
+                    new AntPathRequestMatcher("/h2-console/**", "GET"),
+                    new AntPathRequestMatcher("/api/csrf", "GET"),
                     new AntPathRequestMatcher("/api/auth/**")
                 ).permitAll()
                 .anyRequest().authenticated()
