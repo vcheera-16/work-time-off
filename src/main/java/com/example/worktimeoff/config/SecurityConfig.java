@@ -3,7 +3,6 @@ package com.example.worktimeoff.config;
 import com.example.worktimeoff.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -44,17 +43,18 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(HttpMethod.GET,
-                    "/",
-                    "/index.html",
-                    "/**/*.css",
-                    "/**/*.js",
-                    "/**/*.map",
-                    "/**/*.html",
-                    "/favicon.ico",
-                    "/h2-console/**",
-                    "/api/csrf",
-                    "/api/auth/**"
+                .requestMatchers(
+                    new AntPathRequestMatcher("/"),
+                    new AntPathRequestMatcher("/index.html"),
+                    new AntPathRequestMatcher("/static/**"),
+                    new AntPathRequestMatcher("/**/*.css"),
+                    new AntPathRequestMatcher("/**/*.js"),
+                    new AntPathRequestMatcher("/**/*.map"),
+                    new AntPathRequestMatcher("/**/*.html"),
+                    new AntPathRequestMatcher("/favicon.ico"),
+                    new AntPathRequestMatcher("/h2-console/**"),
+                    new AntPathRequestMatcher("/api/csrf"),
+                    new AntPathRequestMatcher("/api/auth/**")
                 ).permitAll()
                 .anyRequest().authenticated()
             )
