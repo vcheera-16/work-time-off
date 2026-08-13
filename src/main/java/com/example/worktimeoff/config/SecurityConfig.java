@@ -3,6 +3,7 @@ package com.example.worktimeoff.config;
 import com.example.worktimeoff.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -43,17 +44,21 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
             )
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(
-                    new AntPathRequestMatcher("/"),
-                    new AntPathRequestMatcher("/index.html"),
-                    new AntPathRequestMatcher("/static/**"),
-                    new AntPathRequestMatcher("/api/auth/**"),
-                    new AntPathRequestMatcher("/api/csrf"),
-                    new AntPathRequestMatcher("/favicon.ico"),
-                    new AntPathRequestMatcher("/h2-console/**")
+                .requestMatchers(HttpMethod.GET,
+                    "/",
+                    "/index.html",
+                    "/**/*.css",
+                    "/**/*.js",
+                    "/**/*.map",
+                    "/**/*.html",
+                    "/favicon.ico",
+                    "/h2-console/**",
+                    "/api/csrf",
+                    "/api/auth/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
+            // allow frames from same origin so H2 console can render
             .headers(headers -> headers.frameOptions().sameOrigin())
             .formLogin().disable()
             .httpBasic().disable();
