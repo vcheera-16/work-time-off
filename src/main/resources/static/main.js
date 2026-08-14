@@ -2,7 +2,7 @@ console.log('main.js loaded');
 
 // helper to read cookie value by name
 function readCookie(name) {
-  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  const m = document.cookie.match('(^|;)\s*' + name + '\s*=\s*([^;]+)');
   return m ? m.pop() : null;
 }
 
@@ -48,10 +48,16 @@ $(function(){
      // Ensure CSRF endpoint has completed and the session is stable before POSTing.
      var ready = (window.csrfReady || Promise.resolve());
      ready.then(function(){
+       // read token at submit time to avoid races
+       var tokenVal = readCookie('XSRF-TOKEN');
+       console.log('login: sending XSRF token', tokenVal);
        $.ajax({
          url: '/api/auth/login',
          method: 'POST',
          contentType: 'application/json',
+         beforeSend: function(xhr) {
+           if (tokenVal) xhr.setRequestHeader('X-XSRF-TOKEN', tokenVal);
+         },
          data: JSON.stringify(data)
        }).done(function(resp){
          console.log('login success', resp);
@@ -64,10 +70,15 @@ $(function(){
        });
      }).catch(function(){
        // If waiting for CSRF failed for some reason, still attempt the login (will likely 403)
+       var tokenVal = readCookie('XSRF-TOKEN');
+       console.log('login (fallback): sending XSRF token', tokenVal);
        $.ajax({
          url: '/api/auth/login',
          method: 'POST',
          contentType: 'application/json',
+         beforeSend: function(xhr) {
+           if (tokenVal) xhr.setRequestHeader('X-XSRF-TOKEN', tokenVal);
+         },
          data: JSON.stringify(data)
        }).done(function(resp){
          console.log('login success', resp);
