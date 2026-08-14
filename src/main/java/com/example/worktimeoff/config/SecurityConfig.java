@@ -56,6 +56,7 @@ public class SecurityConfig {
                     new AntPathRequestMatcher("/favicon.ico", "GET"),
                     new AntPathRequestMatcher("/h2-console/**", "GET"),
                     new AntPathRequestMatcher("/api/csrf", "GET"),
++                    new AntPathRequestMatcher("/debug/**", "GET"),
                     new AntPathRequestMatcher("/api/auth/**")
                 ).permitAll()
                 .anyRequest().authenticated()
