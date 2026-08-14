@@ -44,19 +44,40 @@ $(function(){
      var email = $(this).find('[name=email]').val();
      var data = { email: email, password: $(this).find('[name=password]').val() };
      console.log('Attempting login for', email);
-     $.ajax({
-       url: '/api/auth/login',
-       method: 'POST',
-       contentType: 'application/json',
-       data: JSON.stringify(data)
-     }).done(function(resp){
-       console.log('login success', resp);
-       showDashboard(resp);
-     }).fail(function(xhr){
-       console.log('login failed', xhr.status, xhr.responseText);
-       if(xhr.status === 401) showError('Invalid credentials');
-       else if(xhr.status === 429) showError('Too many attempts. Try later.');
-       else showError('Login failed');
+
+     // Ensure CSRF endpoint has completed and the session is stable before POSTing.
+     var ready = (window.csrfReady || Promise.resolve());
+     ready.then(function(){
+       $.ajax({
+         url: '/api/auth/login',
+         method: 'POST',
+         contentType: 'application/json',
+         data: JSON.stringify(data)
+       }).done(function(resp){
+         console.log('login success', resp);
+         showDashboard(resp);
+       }).fail(function(xhr){
+         console.log('login failed', xhr.status, xhr.responseText);
+         if(xhr.status === 401) showError('Invalid credentials');
+         else if(xhr.status === 429) showError('Too many attempts. Try later.');
+         else showError('Login failed');
+       });
+     }).catch(function(){
+       // If waiting for CSRF failed for some reason, still attempt the login (will likely 403)
+       $.ajax({
+         url: '/api/auth/login',
+         method: 'POST',
+         contentType: 'application/json',
+         data: JSON.stringify(data)
+       }).done(function(resp){
+         console.log('login success', resp);
+         showDashboard(resp);
+       }).fail(function(xhr){
+         console.log('login failed', xhr.status, xhr.responseText);
+         if(xhr.status === 401) showError('Invalid credentials');
+         else if(xhr.status === 429) showError('Too many attempts. Try later.');
+         else showError('Login failed');
+       });
      });
    });
 
