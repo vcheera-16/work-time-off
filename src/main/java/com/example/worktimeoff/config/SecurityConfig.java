@@ -42,6 +42,9 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                // DEV ONLY: temporarily ignore CSRF for the login POST so you can continue testing while we debug
+                // Remove this ignoringRequestMatchers line before deploying to production
+                .ignoringRequestMatchers(new AntPathRequestMatcher("/api/auth/login", "POST"))
             )
             .authorizeHttpRequests(authorize -> authorize
                 // Permit GET requests for static resources and h2 console explicitly using AntPathRequestMatcher with method
@@ -56,7 +59,7 @@ public class SecurityConfig {
                     new AntPathRequestMatcher("/favicon.ico", "GET"),
                     new AntPathRequestMatcher("/h2-console/**", "GET"),
                     new AntPathRequestMatcher("/api/csrf", "GET"),
-+                    new AntPathRequestMatcher("/debug/**", "GET"),
+                    new AntPathRequestMatcher("/debug/**", "GET"),
                     new AntPathRequestMatcher("/api/auth/**")
                 ).permitAll()
                 .anyRequest().authenticated()
