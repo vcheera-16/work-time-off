@@ -45,6 +45,7 @@ function setupTabs(user) {
       var btn = document.createElement('button');
       btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
       btn.textContent = tab.label;
+      btn.dataset.tabId = tab.id;
       btn.onclick = function(e) {
         e.preventDefault();
         switchTab(tab.id);
@@ -58,14 +59,36 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   
+  // Find and activate button
+  var btn = document.querySelector('.tab-btn[data-tabId="' + tabId + '"]');
+  if (btn) btn.classList.add('active');
+  
   document.getElementById(tabId).classList.add('active');
-  event.target.classList.add('active');
+  
+  // Hide welcome message if not on dashboard
+  var welcomeSection = document.getElementById('welcomeSection');
+  if (tabId === 'dashboardTab') {
+    welcomeSection.style.display = 'block';
+  } else {
+    welcomeSection.style.display = 'none';
+  }
 
-  if (tabId === 'teamTab') loadTeamRequests();
-  if (tabId === 'historyTab') loadMyRequests();
-  if (tabId === 'reportsTab') setupReportForm();
-  if (tabId === 'usersTab') loadUsers();
-  if (tabId === 'calendarTab') renderCalendar();
+  // Trigger data loading for specific tabs
+  if (tabId === 'teamTab') {
+    setTimeout(() => loadTeamRequests(), 100);
+  }
+  if (tabId === 'historyTab') {
+    setTimeout(() => loadMyRequests(), 100);
+  }
+  if (tabId === 'reportsTab') {
+    setupReportForm();
+  }
+  if (tabId === 'usersTab') {
+    setTimeout(() => loadUsers(), 100);
+  }
+  if (tabId === 'calendarTab') {
+    setTimeout(() => renderCalendar(), 100);
+  }
 }
 
 $(function() {
@@ -187,8 +210,19 @@ $(function() {
     e.preventDefault();
     var startDate = $(this).find('[name=startDate]').val();
     var endDate = $(this).find('[name=endDate]').val();
+    var statuses = [];
+    $(this).find('[name=status]:checked').each(function() {
+      statuses.push($(this).val());
+    });
     
-    window.location.href = '/api/reports/pdf?startDate=' + startDate + '&endDate=' + endDate;
+    if (statuses.length === 0) {
+      showError('Please select at least one status');
+      return;
+    }
+    
+    var statusStr = statuses.join('&status=');
+    var url = '/api/reports/pdf?startDate=' + startDate + '&endDate=' + endDate + '&status=' + statusStr;
+    window.location.href = url;
     showSuccess('Report downloading...');
   });
 
@@ -236,7 +270,9 @@ $(function() {
 });
 
 function loadMyRequests() {
+  console.log('Loading my requests...');
   $.getJSON('/api/timeoff').done(function(data) {
+    console.log('My requests data:', data);
     var rows = data.map(function(r) {
       var actions = '';
       if (r.status === 'PENDING') {
@@ -257,15 +293,18 @@ function loadMyRequests() {
         { title: 'Comment' }, { title: 'Actions', orderable: false }
       ]
     });
-  }).fail(function() {
-    console.warn('Failed to load personal requests');
+  }).fail(function(xhr) {
+    console.error('Failed to load personal requests', xhr);
+    showError('Failed to load your requests');
   });
 }
 
 function loadTeamRequests() {
+  console.log('Loading team requests...');
   $.getJSON('/api/timeoff/team').done(function(data) {
-    console.log('Team requests data:', data);
+    console.log('Team requests API response:', data);
     var rows = data.map(function(r) {
+      console.log('Processing request:', r);
       var actions = '';
       if (r.status === 'PENDING') {
         actions = '<div class="btn-group"><button class="btn btn-approve" data-id="' + r.id + '">Approve</button> '
@@ -275,17 +314,23 @@ function loadTeamRequests() {
               r.requestedAt ? r.requestedAt.substring(0, 10) : '-', r.reviewedByName || '-', actions];
     });
     
+    console.log('Rows to display:', rows);
+    
     if ($.fn.dataTable.isDataTable('#teamTable')) {
       $('#teamTable').DataTable().destroy();
     }
-    $('#teamTable').DataTable({
+    var dt = $('#teamTable').DataTable({
       data: rows,
       columns: [
         { title: 'ID' }, { title: 'Employee' }, { title: 'Type' }, { title: 'Start' },
         { title: 'End' }, { title: 'Status' }, { title: 'Requested' }, { title: 'Approved By' },
         { title: 'Actions', orderable: false }
+      ],
+      columnDefs: [
+        { targets: -1, render: function(data) { return data; } }
       ]
     });
+    console.log('DataTable created with', rows.length, 'rows');
   }).fail(function(xhr) {
     console.error('Failed to load team requests', xhr);
     showError('Failed to load team requests');
@@ -293,6 +338,7 @@ function loadTeamRequests() {
 }
 
 function loadUsers() {
+  console.log('Loading users...');
   $.getJSON('/api/users').done(function(data) {
     var rows = data.map(function(u) {
       return [u.id, u.fullName || '-', u.email, u.role, u.managerId || '-'];
@@ -308,21 +354,43 @@ function loadUsers() {
         { title: 'Manager ID' }
       ]
     });
-  }).fail(function() {
-    console.warn('Failed to load users');
+  }).fail(function(xhr) {
+    console.error('Failed to load users', xhr);
+    showError('Failed to load users');
   });
 }
 
 function setupReportForm() {
-  // Set default dates to this year
+  console.log('Setting up report form...');
   var today = new Date();
   var startOfYear = new Date(today.getFullYear(), 0, 1);
   
-  $('[name=startDate]').val(startOfYear.toISOString().split('T')[0]);
-  $('[name=endDate]').val(today.toISOString().split('T')[0]);
+  document.getElementById('reportStartDate').value = startOfYear.toISOString().split('T')[0];
+  document.getElementById('reportEndDate').value = today.toISOString().split('T')[0];
 }
 
 function renderCalendar() {
+  console.log('Rendering calendar for:', currentCalendarDate);
+  
+  // Load applied dates first
+  $.getJSON('/api/timeoff').done(function(data) {
+    window.appliedDates = data
+      .filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
+      .flatMap(r => {
+        var dates = [];
+        var start = new Date(r.startDate);
+        var end = new Date(r.endDate);
+        for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          dates.push(d.toISOString().split('T')[0]);
+        }
+        return dates;
+      });
+    
+    renderCalendarUI();
+  });
+}
+
+function renderCalendarUI() {
   var year = currentCalendarDate.getFullYear();
   var month = currentCalendarDate.getMonth();
   
@@ -341,16 +409,16 @@ function renderCalendar() {
   
   var firstDay = new Date(year, month, 1).getDay();
   var daysInMonth = new Date(year, month + 1, 0).getDate();
-  var daysInPrevMonth = new Date(year, month, 0).getDate();
   
-  for (var i = firstDay - 1; i >= 0; i--) {
-    var day = document.createElement('div');
-    day.className = 'calendar-day other-month';
-    day.textContent = daysInPrevMonth - i;
-    container.appendChild(day);
+  // Add empty cells for days before month starts
+  for (var i = 0; i < firstDay; i++) {
+    var emptyDay = document.createElement('div');
+    emptyDay.className = 'calendar-day other-month';
+    container.appendChild(emptyDay);
   }
   
   var today = new Date();
+  today.setHours(0, 0, 0, 0);
   
   for (var d = 1; d <= daysInMonth; d++) {
     var day = document.createElement('div');
@@ -360,8 +428,9 @@ function renderCalendar() {
     day.className = 'calendar-day';
     day.textContent = d;
     
-    if (date.toDateString() === today.toDateString()) {
+    if (date.getTime() === today.getTime()) {
       day.classList.add('today');
+      day.title = 'Today';
     }
     
     var isHoliday = holidays.some(h => h.date === dateStr);
@@ -379,13 +448,6 @@ function renderCalendar() {
       day.title = 'Past date';
     }
     
-    container.appendChild(day);
-  }
-  
-  for (var i = 1; i <= (42 - firstDay - daysInMonth); i++) {
-    var day = document.createElement('div');
-    day.className = 'calendar-day other-month';
-    day.textContent = i;
     container.appendChild(day);
   }
 }

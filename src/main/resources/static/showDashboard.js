@@ -4,14 +4,14 @@ function showDashboard(user) {
     document.getElementById('loginPanel').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     
-    // Render welcome section - only on dashboard tab
+    // Render welcome section - will be shown/hidden by tab switching
     var welcomeHTML = '<div class="welcome-msg"><h2>Welcome, ' + (user.fullName || user.email) + '! 👋</h2><p>Role: <strong>' + user.role + '</strong></p></div>';
     document.getElementById('welcomeSection').innerHTML = welcomeHTML;
     
     // Setup tabs based on role
     setupTabs(user);
     
-    // Load initial data
+    // Load initial data for dashboard
     loadDashboardStats();
     loadCalendarData();
     loadManagersList();
@@ -23,34 +23,33 @@ function showDashboard(user) {
 }
 
 function loadDashboardStats() {
+  console.log('Loading dashboard stats...');
   $.getJSON('/api/dashboard/stats').done(function(stats) {
+    console.log('Dashboard stats:', stats);
     var statsHTML = '<div class="stats-grid">';
     
-    // Available PTOs with speedometer
+    // Available PTOs
     var usedPercent = stats.usedPTOs > 0 ? Math.round((stats.usedPTOs / stats.totalPTOs) * 100) : 0;
     var availPercent = 100 - usedPercent;
-    statsHTML += '<div class="stat-card"><h3>Available PTOs</h3>';
-    statsHTML += '<div class="speedometer-container"><div class="speedometer"><div class="speedometer-needle" style="transform: rotate(' + (availPercent * 1.8) + 'deg);"></div></div></div>';
-    statsHTML += '<div class="value">' + stats.availablePTOs + '</div><div class="unit">out of ' + stats.totalPTOs + ' days</div>';
-    statsHTML += '</div>';
+    statsHTML += '<div class="stat-card"><h3>Available PTOs</h3><div class="value">' + stats.availablePTOs + '</div><div class="unit">out of ' + stats.totalPTOs + ' days</div><div class="percentage-text">' + availPercent + '% available</div></div>';
     
-    // Used PTOs with speedometer
-    statsHTML += '<div class="stat-card"><h3>Used PTOs</h3>';
-    statsHTML += '<div class="speedometer-container"><div class="speedometer"><div class="speedometer-needle" style="transform: rotate(' + (usedPercent * 1.8) + 'deg);"></div></div></div>';
-    statsHTML += '<div class="value">' + stats.usedPTOs + '</div><div class="unit">' + usedPercent + '% utilized</div>';
-    statsHTML += '</div>';
+    // Used PTOs
+    statsHTML += '<div class="stat-card"><h3>Used PTOs</h3><div class="value">' + stats.usedPTOs + '</div><div class="unit">days used</div><div class="percentage-text">' + usedPercent + '% utilized</div></div>';
     
     // Total PTOs
-    statsHTML += '<div class="stat-card"><h3>Total PTOs</h3><div class="value">' + stats.totalPTOs + '<span class="unit">days</span></div></div>';
+    statsHTML += '<div class="stat-card"><h3>Total PTOs</h3><div class="value">' + stats.totalPTOs + '</div><div class="unit">days per year</div></div>';
     
     // Pending Approvals clickable
     statsHTML += '<div class="stat-card clickable" onclick="openPendingModal()"><h3>Pending Approvals</h3><div class="value">' + stats.pendingApprovals + '</div><div class="unit" style="font-size: 12px; margin-top: 10px; color: #667eea;">Click to view</div></div>';
     
     statsHTML += '</div>';
     document.getElementById('statsContainer').innerHTML = statsHTML;
+  }).fail(function(xhr) {
+    console.error('Failed to load dashboard stats', xhr);
   });
   
   $.getJSON('/api/dashboard/holidays').done(function(holidays_data) {
+    console.log('Holidays data:', holidays_data);
     window.holidays = holidays_data;
     
     var today = new Date().toISOString().split('T')[0];
@@ -68,7 +67,7 @@ function loadDashboardStats() {
         'Independence Day': '🇺🇸',
         'Thanksgiving': '🦃',
         'Labor Day': '👷',
-        'Veterans Day': '🎖️',
+        'Veterans Day': '🏅',
         'Memorial Day': '🇺🇸',
         'Columbus Day': '🧭',
         'MLK Jr': '✊',
@@ -100,10 +99,13 @@ function loadDashboardStats() {
     
     holidaysHTML += '</div>';
     document.getElementById('holidaysContainer').innerHTML = holidaysHTML;
+  }).fail(function(xhr) {
+    console.error('Failed to load holidays', xhr);
   });
 }
 
 function loadCalendarData() {
+  console.log('Pre-loading calendar data...');
   $.getJSON('/api/timeoff').done(function(data) {
     window.appliedDates = data
       .filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
@@ -116,11 +118,14 @@ function loadCalendarData() {
         }
         return dates;
       });
+    console.log('Applied dates loaded:', window.appliedDates);
   });
 }
 
 function loadManagersList() {
+  console.log('Loading managers list...');
   $.getJSON('/api/users/managers').done(function(managers) {
+    console.log('Managers loaded:', managers);
     var select = document.querySelector('select[name="managerId"]');
     if (select) {
       select.innerHTML = '<option value="">-- Select Manager --</option>';
@@ -131,14 +136,18 @@ function loadManagersList() {
         select.appendChild(option);
       });
     }
+  }).fail(function(xhr) {
+    console.error('Failed to load managers', xhr);
   });
 }
 
 function openPendingModal() {
+  console.log('Opening pending approvals modal...');
   var modal = document.getElementById('pendingModal');
   modal.classList.add('active');
   
   $.getJSON('/api/timeoff/pending').done(function(data) {
+    console.log('Pending approvals data:', data);
     var rows = data.map(function(r) {
       return [r.id, r.userName || r.userEmail || 'Unknown', r.type, r.startDate, r.endDate, r.requestedAt ? r.requestedAt.substring(0, 10) : '', r.status];
     });
@@ -153,6 +162,8 @@ function openPendingModal() {
         { title: 'Requested' }, { title: 'Status' }
       ]
     });
+  }).fail(function(xhr) {
+    console.error('Failed to load pending approvals', xhr);
   });
 }
 
