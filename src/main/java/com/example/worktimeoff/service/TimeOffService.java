@@ -1,5 +1,6 @@
 package com.example.worktimeoff.service;
 
+import com.example.worktimeoff.dto.TimeOffRequestDTO;
 import com.example.worktimeoff.model.TimeOffRequest;
 import com.example.worktimeoff.model.User;
 import com.example.worktimeoff.repository.TimeOffRequestRepository;
@@ -39,20 +40,53 @@ public class TimeOffService {
         return repo.save(r);
     }
 
-    public List<TimeOffRequest> listForUser(Integer userId) {
-        return repo.findByUserId(userId);
+    public List<TimeOffRequestDTO> listForUser(Integer userId) {
+        List<TimeOffRequest> requests = repo.findByUserId(userId);
+        return requests.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    public List<TimeOffRequest> listForManager(Integer managerId, Optional<String> statusFilter) {
+    public List<TimeOffRequestDTO> listForManager(Integer managerId, Optional<String> statusFilter) {
+        User manager = userRepository.findById(managerId).orElseThrow();
         List<User> team = userRepository.findByManagerId(managerId);
         List<Integer> ids = team.stream().map(User::getId).collect(Collectors.toList());
         if (ids.isEmpty()) return List.of();
+        
         List<TimeOffRequest> requests = repo.findByUserIdIn(ids);
         if (statusFilter.isPresent()) {
             String s = statusFilter.get();
-            return requests.stream().filter(r -> s.equalsIgnoreCase(r.getStatus())).collect(Collectors.toList());
+            requests = requests.stream().filter(r -> s.equalsIgnoreCase(r.getStatus())).collect(Collectors.toList());
         }
-        return requests;
+        return requests.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    public List<TimeOffRequestDTO> listAllRequests(Optional<String> statusFilter) {
+        List<TimeOffRequest> requests = repo.findAll();
+        if (statusFilter.isPresent()) {
+            String s = statusFilter.get();
+            requests = requests.stream().filter(r -> s.equalsIgnoreCase(r.getStatus())).collect(Collectors.toList());
+        }
+        return requests.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    public List<TimeOffRequestDTO> listPendingForUser(Integer userId) {
+        List<TimeOffRequest> requests = repo.findByUserId(userId);
+        return requests.stream()
+            .filter(r -> "PENDING".equals(r.getStatus()))
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+
+    public long countUsedPTOsThisYear(Integer userId) {
+        int currentYear = LocalDate.now().getYear();
+        List<TimeOffRequest> approved = repo.findByUserId(userId).stream()
+            .filter(r -> "APPROVED".equals(r.getStatus()) && r.getStartDate().getYear() == currentYear)
+            .collect(Collectors.toList());
+        
+        long totalDays = 0;
+        for (TimeOffRequest r : approved) {
+            totalDays += r.getEndDate().toEpochDay() - r.getStartDate().toEpochDay() + 1;
+        }
+        return totalDays;
     }
 
     public Optional<TimeOffRequest> findById(Integer id) {
@@ -70,13 +104,42 @@ public class TimeOffService {
     public TimeOffRequest reviewRequest(Integer managerId, Integer requestId, boolean approve, String comment) {
         TimeOffRequest r = repo.findById(requestId).orElseThrow(() -> new IllegalArgumentException("not found"));
         User targetUser = userRepository.findById(r.getUserId()).orElseThrow();
-        if (targetUser.getManagerId() == null || !targetUser.getManagerId().equals(managerId)) {
-            throw new SecurityException("not authorized to review");
+        User reviewer = userRepository.findById(managerId).orElseThrow();
+        
+        // Admins can approve anyone, managers can only approve their team
+        if ("MANAGER".equals(reviewer.getRole())) {
+            if (targetUser.getManagerId() == null || !targetUser.getManagerId().equals(managerId)) {
+                throw new SecurityException("not authorized to review");
+            }
         }
+        
         r.setReviewedBy(managerId);
         r.setManagerComment(comment);
         r.setReviewedAt(java.time.OffsetDateTime.now());
         r.setStatus(approve ? "APPROVED" : "DENIED");
         return repo.save(r);
+    }
+
+    private TimeOffRequestDTO convertToDTO(TimeOffRequest request) {
+        User requester = userRepository.findById(request.getUserId()).orElse(null);
+        User reviewer = request.getReviewedBy() != null ? userRepository.findById(request.getReviewedBy()).orElse(null) : null;
+
+        return new TimeOffRequestDTO(
+            request.getId(),
+            request.getUserId(),
+            requester != null ? requester.getFullName() : "Unknown",
+            requester != null ? requester.getEmail() : "unknown@example.com",
+            request.getType(),
+            request.getStartDate(),
+            request.getEndDate(),
+            request.getPartialDay(),
+            request.getStatus(),
+            request.getRequestedAt(),
+            request.getReviewedBy(),
+            reviewer != null ? reviewer.getFullName() : null,
+            reviewer != null ? reviewer.getEmail() : null,
+            request.getReviewedAt(),
+            request.getManagerComment()
+        );
     }
 }
