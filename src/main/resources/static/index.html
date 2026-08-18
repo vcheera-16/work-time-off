@@ -9,6 +9,9 @@
     body { font-family: Arial, Helvetica, sans-serif; margin: 20px; }
     #dashboard { margin-top: 20px; }
     form label { display:block; margin-bottom:8px; }
+    #topBar { display:flex; justify-content:space-between; align-items:center; }
+    #logoutBtn { margin-left: 10px; }
+    .small { font-size:0.9em; color:#555; }
   </style>
 </head>
 <body>
@@ -23,16 +26,47 @@
     </div>
 
     <div id="dashboard" style="display:none;">
-      <h2>Dashboard</h2>
+      <div id="topBar">
+        <h2>Dashboard</h2>
+        <div>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
       <div id="showDashboard"></div>
 
-      <h3>Team Requests</h3>
-      <table id="teamTable" class="display" style="width:100%">
+      <h3>My Requests</h3>
+      <table id="myTable" class="display" style="width:100%">
         <thead>
-          <tr><th>ID</th><th>User</th><th>Type</th><th>Start</th><th>End</th><th>Actions</th></tr>
+          <tr><th>ID</th><th>Type</th><th>Start</th><th>End</th><th>Partial</th><th>Status</th></tr>
         </thead>
         <tbody></tbody>
       </table>
+
+      <h3>Apply for Time Off</h3>
+      <form id="applyForm">
+        <label>Type:
+          <select name="type">
+            <option value="VACATION">Vacation</option>
+            <option value="SICK">Sick</option>
+            <option value="PERSONAL">Personal</option>
+          </select>
+        </label>
+        <label>Start Date: <input type="date" name="startDate" required /></label>
+        <label>End Date: <input type="date" name="endDate" required /></label>
+        <label>Partial Day: <input type="text" name="partialDay" placeholder="e.g. morning" /></label>
+        <button type="submit">Apply</button>
+      </form>
+
+      <div id="managerSection" style="display:none;">
+        <h3>Team Requests</h3>
+        <table id="teamTable" class="display" style="width:100%">
+          <thead>
+            <tr><th>ID</th><th>User</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -41,8 +75,6 @@
 
   <script>
     // Expose a promise that resolves when the CSRF endpoint completes.
-    // The login handler will wait for this before sending state-changing POSTs so
-    // the JSESSIONID that created the CSRF token matches the session used by the POST.
     window.csrfReady = fetch('/api/csrf', { credentials: 'same-origin', cache: 'no-store' })
       .then(function(){ return true; })
       .catch(function(){ return true; });

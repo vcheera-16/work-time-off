@@ -13,10 +13,19 @@ function showDashboard(user) {
     var sd = document.getElementById('showDashboard');
     if (sd) {
       sd.innerHTML = '<strong>Welcome, ' + (user.fullName || user.email) + '</strong>' +
-        '<div>Role: ' + (user.role || '') + '</div>';
+        '<div class="small">Role: ' + (user.role || '') + '</div>';
     }
 
-    // TODO: populate teamTable with real data via API calls
+    // load personal requests
+    if (window._loadMyRequests) window._loadMyRequests();
+
+    // if manager, show team section and load team requests
+    if (user.role === 'MANAGER') {
+      var ms = document.getElementById('managerSection');
+      if (ms) ms.style.display = 'block';
+      if (window._loadTeamRequests) window._loadTeamRequests();
+    }
+
     console.log('Dashboard shown for', user);
   } catch (e) {
     console.error('showDashboard error', e);
