@@ -13,18 +13,16 @@ function readCookie(name) {
 function showError(msg) {
   var el = document.getElementById('errorArea');
   if (el) {
-    el.textContent = msg;
-    el.className = 'error';
-    setTimeout(() => { el.textContent = ''; el.className = ''; }, 5000);
+    el.innerHTML = '<div class="error">' + msg + '</div>';
+    setTimeout(() => { el.innerHTML = ''; }, 5000);
   }
 }
 
 function showSuccess(msg) {
   var el = document.getElementById('errorArea');
   if (el) {
-    el.textContent = msg;
-    el.className = 'success';
-    setTimeout(() => { el.textContent = ''; el.className = ''; }, 3000);
+    el.innerHTML = '<div class="success">' + msg + '</div>';
+    setTimeout(() => { el.innerHTML = ''; }, 3000);
   }
 }
 
@@ -143,8 +141,9 @@ $(function() {
     }).done(function() {
       showSuccess('Request approved!');
       loadTeamRequests();
-    }).fail(function() {
-      showError('Failed to approve request');
+    }).fail(function(xhr) {
+      var resp = xhr.responseJSON;
+      showError(resp && resp.error ? resp.error : 'Failed to approve request');
     });
   });
 
@@ -161,8 +160,9 @@ $(function() {
     }).done(function() {
       showSuccess('Request denied!');
       loadTeamRequests();
-    }).fail(function() {
-      showError('Failed to deny request');
+    }).fail(function(xhr) {
+      var resp = xhr.responseJSON;
+      showError(resp && resp.error ? resp.error : 'Failed to deny request');
     });
   });
 
@@ -176,8 +176,9 @@ $(function() {
     }).done(function() {
       showSuccess('Request cancelled!');
       loadMyRequests();
-    }).fail(function() {
-      showError('Failed to cancel request');
+    }).fail(function(xhr) {
+      var resp = xhr.responseJSON;
+      showError(resp && resp.error ? resp.error : 'Failed to cancel request');
     });
   });
 
@@ -246,17 +247,16 @@ function loadMyRequests() {
     });
     
     if ($.fn.dataTable.isDataTable('#historyTable')) {
-      $('#historyTable').DataTable().clear().rows.add(rows).draw();
-    } else {
-      $('#historyTable').DataTable({
-        data: rows,
-        columns: [
-          { title: 'ID' }, { title: 'Type' }, { title: 'Start' }, { title: 'End' },
-          { title: 'Status' }, { title: 'Requested At' }, { title: 'Reviewed By' },
-          { title: 'Comment' }, { title: 'Actions', orderable: false }
-        ]
-      });
+      $('#historyTable').DataTable().destroy();
     }
+    $('#historyTable').DataTable({
+      data: rows,
+      columns: [
+        { title: 'ID' }, { title: 'Type' }, { title: 'Start' }, { title: 'End' },
+        { title: 'Status' }, { title: 'Requested At' }, { title: 'Reviewed By' },
+        { title: 'Comment' }, { title: 'Actions', orderable: false }
+      ]
+    });
   }).fail(function() {
     console.warn('Failed to load personal requests');
   });
@@ -264,50 +264,50 @@ function loadMyRequests() {
 
 function loadTeamRequests() {
   $.getJSON('/api/timeoff/team').done(function(data) {
+    console.log('Team requests data:', data);
     var rows = data.map(function(r) {
       var actions = '';
       if (r.status === 'PENDING') {
         actions = '<div class="btn-group"><button class="btn btn-approve" data-id="' + r.id + '">Approve</button> '
                 + '<button class="btn btn-deny" data-id="' + r.id + '">Deny</button></div>';
       }
-      return [r.id, r.userName || r.userEmail, r.type, r.startDate, r.endDate, r.status,
-              r.userName || '-', r.reviewedByName || '-', actions];
+      return [r.id, r.userName || r.userEmail || 'Unknown', r.type, r.startDate, r.endDate, r.status,
+              r.requestedAt ? r.requestedAt.substring(0, 10) : '-', r.reviewedByName || '-', actions];
     });
     
     if ($.fn.dataTable.isDataTable('#teamTable')) {
-      $('#teamTable').DataTable().clear().rows.add(rows).draw();
-    } else {
-      $('#teamTable').DataTable({
-        data: rows,
-        columns: [
-          { title: 'ID' }, { title: 'Employee' }, { title: 'Type' }, { title: 'Start' },
-          { title: 'End' }, { title: 'Status' }, { title: 'Requested By' }, { title: 'Approved By' },
-          { title: 'Actions', orderable: false }
-        ]
-      });
+      $('#teamTable').DataTable().destroy();
     }
-  }).fail(function() {
-    console.warn('Failed to load team requests');
+    $('#teamTable').DataTable({
+      data: rows,
+      columns: [
+        { title: 'ID' }, { title: 'Employee' }, { title: 'Type' }, { title: 'Start' },
+        { title: 'End' }, { title: 'Status' }, { title: 'Requested' }, { title: 'Approved By' },
+        { title: 'Actions', orderable: false }
+      ]
+    });
+  }).fail(function(xhr) {
+    console.error('Failed to load team requests', xhr);
+    showError('Failed to load team requests');
   });
 }
 
 function loadUsers() {
   $.getJSON('/api/users').done(function(data) {
     var rows = data.map(function(u) {
-      return [u.id, u.fullName || '-', u.email, u.role, u.managerId || '-', ''];
+      return [u.id, u.fullName || '-', u.email, u.role, u.managerId || '-'];
     });
     
     if ($.fn.dataTable.isDataTable('#usersTable')) {
-      $('#usersTable').DataTable().clear().rows.add(rows).draw();
-    } else {
-      $('#usersTable').DataTable({
-        data: rows,
-        columns: [
-          { title: 'ID' }, { title: 'Name' }, { title: 'Email' }, { title: 'Role' },
-          { title: 'Manager ID' }, { title: 'Actions', orderable: false }
-        ]
-      });
+      $('#usersTable').DataTable().destroy();
     }
+    $('#usersTable').DataTable({
+      data: rows,
+      columns: [
+        { title: 'ID' }, { title: 'Name' }, { title: 'Email' }, { title: 'Role' },
+        { title: 'Manager ID' }
+      ]
+    });
   }).fail(function() {
     console.warn('Failed to load users');
   });
@@ -370,10 +370,10 @@ function renderCalendar() {
     
     if (isHoliday) {
       day.classList.add('holiday');
-      day.title = 'Federal Holiday - Cannot apply';
+      day.title = 'Federal Holiday';
     } else if (isApplied) {
       day.classList.add('applied');
-      day.title = 'Time off already applied';
+      day.title = 'Time off applied';
     } else if (isPast) {
       day.classList.add('disabled');
       day.title = 'Past date';
