@@ -217,16 +217,51 @@ $(function() {
     $(this).find('[name=status]:checked').each(function() {
       statuses.push($(this).val());
     });
-    
+
+    if (!startDate || !endDate) {
+      showError('Please select start and end dates');
+      return;
+    }
     if (statuses.length === 0) {
       showError('Please select at least one status');
       return;
     }
-    
-    var statusStr = statuses.join('&status=');
-    var url = '/api/reports/pdf?startDate=' + startDate + '&endDate=' + endDate + '&status=' + statusStr;
-    window.location.href = url;
-    showSuccess('Report downloading...');
+
+    var params = 'startDate=' + startDate + '&endDate=' + endDate;
+    statuses.forEach(function(s) { params += '&status=' + s; });
+
+    $.getJSON('/api/reports/data?' + params).done(function(data) {
+      var rows = data.map(function(r) {
+        return [
+          r.userName || r.userEmail || '-',
+          r.type,
+          r.startDate,
+          r.endDate,
+          r.status,
+          r.requestedAt ? r.requestedAt.substring(0, 10) : '-'
+        ];
+      });
+
+      if ($.fn.dataTable.isDataTable('#reportTable')) {
+        $('#reportTable').DataTable().destroy();
+      }
+      $('#reportTable').DataTable({
+        data: rows,
+        columns: [
+          { title: 'Employee' }, { title: 'Type' }, { title: 'Start Date' },
+          { title: 'End Date' }, { title: 'Status' }, { title: 'Requested Date' }
+        ]
+      });
+
+      if (data.length === 0) {
+        showError('No records found for the selected criteria');
+      } else {
+        showSuccess('Report generated: ' + data.length + ' record(s) found');
+      }
+    }).fail(function(xhr) {
+      var resp = xhr.responseJSON;
+      showError(resp && resp.error ? resp.error : 'Failed to generate report');
+    });
   });
 
   // User management - create employee

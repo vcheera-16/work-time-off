@@ -113,4 +113,33 @@ public class ReportController {
                 .body(Map.of("error", "Failed to generate PDF: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/data")
+    public ResponseEntity<?> getReportData(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam List<String> status,
+            Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        User u = userService.findByEmail(principal.getName()).orElseThrow();
+
+        if (!"MANAGER".equalsIgnoreCase(u.getRole()) && !"ADMIN".equalsIgnoreCase(u.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Only managers and admins can view reports"));
+        }
+
+        List<TimeOffRequestDTO> requests;
+        if ("ADMIN".equalsIgnoreCase(u.getRole())) {
+            requests = timeOffService.listAllRequests(Optional.empty());
+        } else {
+            requests = timeOffService.listForManager(u.getId(), Optional.empty());
+        }
+
+        List<String> upperStatuses = status.stream().map(String::toUpperCase).collect(Collectors.toList());
+        requests = requests.stream()
+            .filter(r -> upperStatuses.contains(r.getStatus().toUpperCase()))
+            .filter(r -> !r.getStartDate().isBefore(startDate) && !r.getEndDate().isAfter(endDate))
+            .collect(Collectors.toList());
+
+        return ResponseEntity.ok(requests);
+    }
 }
