@@ -89,6 +89,9 @@ function switchTab(tabId) {
   if (tabId === 'calendarTab') {
     setTimeout(() => renderCalendar(), 100);
   }
+  if (tabId === 'dashboardTab') {
+    loadDashboardStats();
+  }
 }
 
 $(function() {
@@ -374,20 +377,46 @@ function renderCalendar() {
   
   // Load applied dates first
   $.getJSON('/api/timeoff').done(function(data) {
-    window.appliedDates = data
-      .filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
-      .flatMap(r => {
-        var dates = [];
-        var start = new Date(r.startDate);
-        var end = new Date(r.endDate);
+    window.appliedDates = [];
+    window.appliedDateTypes = {};
+    data.filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
+      .forEach(r => {
+        var start = new Date(r.startDate + 'T00:00:00');
+        var end = new Date(r.endDate + 'T00:00:00');
         for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          dates.push(d.toISOString().split('T')[0]);
+          var ds = d.toISOString().split('T')[0];
+          window.appliedDates.push(ds);
+          window.appliedDateTypes[ds] = r.type;
         }
-        return dates;
       });
     
     renderCalendarUI();
   });
+}
+
+function getHolidaySymbol(name) {
+  var symbols = {
+    'Christmas': '🎄',
+    'New Year': '🎆',
+    'Independence Day': '🇺🇸',
+    'Thanksgiving': '🦃',
+    'Labor Day': '👷',
+    'Veterans Day': '🏅',
+    "Veterans' Day": '🏅',
+    "Veteran's Day": '🏅',
+    'Memorial Day': '🇺🇸',
+    'Columbus Day': '🧭',
+    'MLK': '✊',
+    'Martin Luther King': '✊',
+    'Presidents Day': '👔',
+    "Presidents' Day": '👔',
+    'Washington': '👔',
+    'Juneteenth': '✊'
+  };
+  for (var key in symbols) {
+    if (name.indexOf(key) !== -1) return symbols[key];
+  }
+  return '🗓️';
 }
 
 function renderCalendarUI() {
@@ -400,17 +429,19 @@ function renderCalendarUI() {
   container.innerHTML = '';
   
   var daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  daysOfWeek.forEach(day => {
+  daysOfWeek.forEach(function(d) {
     var header = document.createElement('div');
     header.className = 'calendar-day header';
-    header.textContent = day;
+    header.textContent = d;
     container.appendChild(header);
   });
   
-  var firstDay = new Date(year, month, 1).getDay();
+  // Use local date constructor to avoid timezone shifting
+  var firstDayDate = new Date(year, month, 1);
+  var firstDay = firstDayDate.getDay(); // 0=Sun, 1=Mon, ...
   var daysInMonth = new Date(year, month + 1, 0).getDate();
   
-  // Add empty cells for days before month starts
+  // Add empty/placeholder cells for days before month starts
   for (var i = 0; i < firstDay; i++) {
     var emptyDay = document.createElement('div');
     emptyDay.className = 'calendar-day other-month';
@@ -420,35 +451,72 @@ function renderCalendarUI() {
   var today = new Date();
   today.setHours(0, 0, 0, 0);
   
+  // Build holiday lookup by date string
+  var holidayMap = {};
+  (window.holidays || []).forEach(function(h) {
+    holidayMap[h.date] = h.name;
+  });
+  
   for (var d = 1; d <= daysInMonth; d++) {
-    var day = document.createElement('div');
+    var dayEl = document.createElement('div');
     var date = new Date(year, month, d);
-    var dateStr = date.toISOString().split('T')[0];
+    var mm = String(month + 1).padStart(2, '0');
+    var dd = String(d).padStart(2, '0');
+    var dateStr = year + '-' + mm + '-' + dd;
     
-    day.className = 'calendar-day';
-    day.textContent = d;
+    dayEl.className = 'calendar-day';
+    
+    var numSpan = document.createElement('span');
+    numSpan.className = 'calendar-day-num';
+    numSpan.textContent = d;
+    dayEl.appendChild(numSpan);
     
     if (date.getTime() === today.getTime()) {
-      day.classList.add('today');
-      day.title = 'Today';
+      dayEl.classList.add('today');
+      dayEl.title = 'Today';
     }
     
-    var isHoliday = holidays.some(h => h.date === dateStr);
+    var holidayName = holidayMap[dateStr];
     var isApplied = appliedDates.includes(dateStr);
     var isPast = date < today;
+    var appliedType = window.appliedDateTypes ? window.appliedDateTypes[dateStr] : null;
     
-    if (isHoliday) {
-      day.classList.add('holiday');
-      day.title = 'Federal Holiday';
+    if (holidayName) {
+      dayEl.classList.add('holiday');
+      var sym = document.createElement('span');
+      sym.className = 'calendar-day-sym';
+      sym.textContent = getHolidaySymbol(holidayName);
+      dayEl.appendChild(sym);
+      dayEl.title = holidayName;
     } else if (isApplied) {
-      day.classList.add('applied');
-      day.title = 'Time off applied';
+      if (appliedType === 'VACATION') {
+        dayEl.classList.add('applied-vacation');
+        var sym2 = document.createElement('span');
+        sym2.className = 'calendar-day-sym';
+        sym2.textContent = '☀️';
+        dayEl.appendChild(sym2);
+        dayEl.title = 'Vacation';
+      } else if (appliedType === 'SICK') {
+        dayEl.classList.add('applied-sick');
+        var sym3 = document.createElement('span');
+        sym3.className = 'calendar-day-sym';
+        sym3.textContent = '🤒';
+        dayEl.appendChild(sym3);
+        dayEl.title = 'Sick Day';
+      } else {
+        dayEl.classList.add('applied');
+        var sym4 = document.createElement('span');
+        sym4.className = 'calendar-day-sym';
+        sym4.textContent = '📋';
+        dayEl.appendChild(sym4);
+        dayEl.title = 'Time off applied';
+      }
     } else if (isPast) {
-      day.classList.add('disabled');
-      day.title = 'Past date';
+      dayEl.classList.add('disabled');
+      dayEl.title = 'Past date';
     }
     
-    container.appendChild(day);
+    container.appendChild(dayEl);
   }
 }
 
