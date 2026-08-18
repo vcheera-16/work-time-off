@@ -1,5 +1,6 @@
 package com.example.worktimeoff.controller;
 
+import com.example.worktimeoff.dto.TimeOffRequestDTO;
 import com.example.worktimeoff.dto.CreateTimeOffRequest;
 import com.example.worktimeoff.model.TimeOffRequest;
 import com.example.worktimeoff.model.User;
@@ -46,16 +47,12 @@ public class TimeOffController {
         }
     }
 
-    // rest unchanged
     @GetMapping
-    public ResponseEntity<?> listMine(@RequestParam(name = "mine", defaultValue = "true") boolean mine, Principal principal) {
+    public ResponseEntity<?> listMine(Principal principal) {
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         User u = userService.findByEmail(principal.getName()).orElseThrow();
-        if (mine) {
-            List<TimeOffRequest> list = timeOffService.listForUser(u.getId());
-            return ResponseEntity.ok(list);
-        }
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        List<TimeOffRequestDTO> list = timeOffService.listForUser(u.getId());
+        return ResponseEntity.ok(list);
     }
 
     @PostMapping("/{id}/cancel")
@@ -76,12 +73,34 @@ public class TimeOffController {
     public ResponseEntity<?> teamRequests(@RequestParam(name = "status", required = false) String status, Principal principal) {
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         User u = userService.findByEmail(principal.getName()).orElseThrow();
-        // only managers
+        
+        // Employees cannot see team requests
+        if ("EMPLOYEE".equalsIgnoreCase(u.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Employees cannot view team requests"));
+        }
+        
+        // Only managers and admins
         if (!"MANAGER".equalsIgnoreCase(u.getRole()) && !"ADMIN".equalsIgnoreCase(u.getRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        List<TimeOffRequest> list = timeOffService.listForManager(u.getId(), Optional.ofNullable(status));
+        
+        List<TimeOffRequestDTO> list;
+        if ("ADMIN".equalsIgnoreCase(u.getRole())) {
+            // Admin sees all requests
+            list = timeOffService.listAllRequests(Optional.ofNullable(status));
+        } else {
+            // Manager sees only team requests
+            list = timeOffService.listForManager(u.getId(), Optional.ofNullable(status));
+        }
         return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<?> pendingApprovals(Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        User u = userService.findByEmail(principal.getName()).orElseThrow();
+        List<TimeOffRequestDTO> pending = timeOffService.listPendingForUser(u.getId());
+        return ResponseEntity.ok(pending);
     }
 
     @PostMapping("/{id}/review")
