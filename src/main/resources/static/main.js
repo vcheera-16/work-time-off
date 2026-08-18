@@ -264,13 +264,29 @@ $(function() {
     });
   });
 
-  // User management - create employee
+  // Role dropdown change - show/hide manager dropdown label
+  $(document).on('change', '#newUserRole', function() {
+    var role = $(this).val();
+    var managerLabel = $('#newUserManager').closest('label');
+    if (role === 'MANAGER') {
+      // For managers, manager selection is optional
+      $('#newUserManager').prop('required', false);
+      managerLabel.find('span').text('Manager (optional):');
+    } else {
+      $('#newUserManager').prop('required', true);
+      managerLabel.find('span').text('Manager:');
+    }
+  });
+
+  // User management - create user
   $(document).on('submit', '#createUserForm', function(e) {
     e.preventDefault();
+    var managerIdVal = $(this).find('[name=managerId]').val();
     var payload = {
       email: $(this).find('[name=email]').val(),
       fullName: $(this).find('[name=fullName]').val(),
-      managerId: parseInt($(this).find('[name=managerId]').val())
+      role: $(this).find('[name=role]').val(),
+      managerId: managerIdVal ? parseInt(managerIdVal) : null
     };
     
     $.ajax({
@@ -279,12 +295,12 @@ $(function() {
       contentType: 'application/json',
       data: JSON.stringify(payload)
     }).done(function() {
-      showSuccess('Employee created successfully!');
+      showSuccess('User created successfully!');
       $('#createUserForm')[0].reset();
       loadUsers();
     }).fail(function(xhr) {
       var resp = xhr.responseJSON;
-      showError(resp && resp.error ? resp.error : 'Failed to create employee');
+      showError(resp && resp.error ? resp.error : 'Failed to create user');
     });
   });
 
@@ -392,6 +408,18 @@ function loadUsers() {
         { title: 'Manager ID' }
       ]
     });
+
+    // Populate the manager dropdown for the create user form
+    var managerSel = document.getElementById('newUserManager');
+    if (managerSel) {
+      managerSel.innerHTML = '<option value="">-- Select Manager --</option>';
+      data.forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = (u.fullName || u.email) + ' (' + u.role + ')';
+        managerSel.appendChild(opt);
+      });
+    }
   }).fail(function(xhr) {
     console.error('Failed to load users', xhr);
     showError('Failed to load users');
@@ -557,4 +585,36 @@ function renderCalendarUI() {
 
 function closePendingModal() {
   document.getElementById('pendingModal').classList.remove('active');
+}
+
+function downloadReportPdf() {
+  if (!$.fn.dataTable.isDataTable('#reportTable')) {
+    showError('Please generate a report first before downloading.');
+    return;
+  }
+  var dt = $('#reportTable').DataTable();
+  var headers = ['Employee', 'Type', 'Start Date', 'End Date', 'Status', 'Requested Date'];
+  var rows = dt.rows({ search: 'applied' }).data().toArray();
+  if (rows.length === 0) {
+    showError('No report data to download.');
+    return;
+  }
+
+  var { jsPDF } = window.jspdf;
+  var doc = new jsPDF({ orientation: 'landscape' });
+  doc.setFontSize(16);
+  doc.text('Time Off Report', 14, 15);
+  doc.setFontSize(10);
+  doc.text('Generated: ' + new Date().toLocaleDateString(), 14, 22);
+
+  doc.autoTable({
+    startY: 28,
+    head: [headers],
+    body: rows,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [102, 126, 234], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 245, 255] }
+  });
+
+  doc.save('time-off-report.pdf');
 }

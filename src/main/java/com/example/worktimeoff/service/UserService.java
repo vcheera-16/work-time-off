@@ -53,6 +53,16 @@ public class UserService implements UserDetailsService {
         return userRepository.save(u);
     }
 
+    public User createUser(String email, String fullName, String role, Integer managerId) {
+        User u = new User();
+        u.setEmail(email.toLowerCase());
+        u.setPasswordHash(passwordEncoder.encode("TempPassword123!"));
+        u.setFullName(fullName);
+        u.setRole(role != null ? role.toUpperCase() : "EMPLOYEE");
+        u.setManagerId(managerId);
+        return userRepository.save(u);
+    }
+
     public User createEmployee(String email, String fullName, Integer managerId) {
         User u = new User();
         u.setEmail(email.toLowerCase());
