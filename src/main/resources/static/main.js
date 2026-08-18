@@ -5,6 +5,94 @@ var currentCalendarDate = new Date();
 var appliedDates = [];
 var holidays = [];
 
+// Federal holidays for the US (fixed + rule-based floating holidays)
+function getFederalHolidayDates(year) {
+  var dates = new Set();
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function fmt(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
+
+  // Observed date helper: if date falls on Sat -> Fri, Sun -> Mon
+  function observed(y, m, d) {
+    var dt = new Date(y, m - 1, d);
+    var dow = dt.getDay();
+    if (dow === 6) return new Date(y, m - 1, d - 1); // Sat -> Fri
+    if (dow === 0) return new Date(y, m - 1, d + 1); // Sun -> Mon
+    return dt;
+  }
+
+  // nth weekday of month: e.g. nthWeekday(year, 1, 1, 3) = 3rd Monday of Jan
+  function nthWeekday(y, month, weekday, n) {
+    var first = new Date(y, month - 1, 1);
+    var diff = (weekday - first.getDay() + 7) % 7;
+    return new Date(y, month - 1, 1 + diff + (n - 1) * 7);
+  }
+
+  // Last weekday of month
+  function lastWeekday(y, month, weekday) {
+    var last = new Date(y, month, 0);
+    var diff = (last.getDay() - weekday + 7) % 7;
+    return new Date(y, month - 1, last.getDate() - diff);
+  }
+
+  function addObserved(y, m, d) {
+    var obs = observed(y, m, d);
+    dates.add(fmt(obs.getFullYear(), obs.getMonth() + 1, obs.getDate()));
+  }
+
+  function addDate(dt) {
+    dates.add(fmt(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()));
+  }
+
+  // New Year's Day - Jan 1
+  addObserved(year, 1, 1);
+  // Birthday of Martin Luther King Jr. - 3rd Monday in January
+  addDate(nthWeekday(year, 1, 1, 3));
+  // Washington's Birthday - 3rd Monday in February
+  addDate(nthWeekday(year, 2, 1, 3));
+  // Memorial Day - last Monday in May
+  addDate(lastWeekday(year, 5, 1));
+  // Juneteenth - Jun 19
+  addObserved(year, 6, 19);
+  // Independence Day - Jul 4
+  addObserved(year, 7, 4);
+  // Labor Day - 1st Monday in September
+  addDate(nthWeekday(year, 9, 1, 1));
+  // Columbus Day - 2nd Monday in October
+  addDate(nthWeekday(year, 10, 1, 2));
+  // Veterans Day - Nov 11
+  addObserved(year, 11, 11);
+  // Thanksgiving Day - 4th Thursday in November
+  addDate(nthWeekday(year, 11, 4, 4));
+  // Christmas Day - Dec 25
+  addObserved(year, 12, 25);
+
+  return dates;
+}
+
+// Check if a date string (YYYY-MM-DD) is a weekend or federal holiday
+function isWeekendOrHoliday(dateStr) {
+  var dt = new Date(dateStr + 'T00:00:00');
+  var dow = dt.getDay();
+  if (dow === 0 || dow === 6) return true; // Sunday or Saturday
+  var holidayDates = getFederalHolidayDates(dt.getFullYear());
+  return holidayDates.has(dateStr);
+}
+
+// Count business days between two date strings (inclusive), excluding weekends and federal holidays
+function countBusinessDays(startStr, endStr) {
+  var start = new Date(startStr + 'T00:00:00');
+  var end = new Date(endStr + 'T00:00:00');
+  var count = 0;
+  for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    var ds = d.getFullYear() + '-' + mm + '-' + dd;
+    if (!isWeekendOrHoliday(ds)) count++;
+  }
+  return count;
+}
+
 function readCookie(name) {
   const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
   return m ? m.pop() : null;
@@ -132,11 +220,37 @@ $(function() {
   // Apply for time off
   $(document).on('submit', '#applyForm', function(e) {
     e.preventDefault();
+    var startDate = $(this).find('[name=startDate]').val();
+    var endDate = $(this).find('[name=endDate]').val();
+    var type = $(this).find('[name=type]').val();
+
+    if (!startDate || !endDate) {
+      showError('Please select both start and end date.');
+      return;
+    }
+    if (isWeekendOrHoliday(startDate)) {
+      showError('Start date cannot be a weekend or federal holiday.');
+      return;
+    }
+    if (isWeekendOrHoliday(endDate)) {
+      showError('End date cannot be a weekend or federal holiday.');
+      return;
+    }
+    if (endDate < startDate) {
+      showError('End date cannot be before start date.');
+      return;
+    }
+
+    var businessDays = countBusinessDays(startDate, endDate);
+    if (businessDays === 0) {
+      showError('Selected date range contains no working days (all weekends or holidays).');
+      return;
+    }
+
     var payload = {
-      type: $(this).find('[name=type]').val(),
-      startDate: $(this).find('[name=startDate]').val(),
-      endDate: $(this).find('[name=endDate]').val(),
-      partialDay: $(this).find('[name=partialDay]').val()
+      type: type,
+      startDate: startDate,
+      endDate: endDate
     };
     
     $.ajax({
@@ -145,7 +259,7 @@ $(function() {
       contentType: 'application/json',
       data: JSON.stringify(payload)
     }).done(function() {
-      showSuccess('Time off request submitted successfully!');
+      showSuccess('Time off request submitted successfully! (' + businessDays + ' working day(s) counted, weekends and federal holidays excluded)');
       $('#applyForm')[0].reset();
       loadMyRequests();
     }).fail(function(xhr) {
@@ -543,14 +657,22 @@ function renderCalendarUI() {
     var isApplied = appliedDates.includes(dateStr);
     var isPast = date < today;
     var appliedType = window.appliedDateTypes ? window.appliedDateTypes[dateStr] : null;
-    
-    if (holidayName) {
+    var isWeekend = (date.getDay() === 0 || date.getDay() === 6);
+    var isFedHoliday = !holidayName && getFederalHolidayDates(year).has(dateStr);
+
+    if (isWeekend) {
+      dayEl.classList.add('weekend-disabled');
+      dayEl.title = 'Weekends are not counted as PTO';
+    } else if (holidayName) {
       dayEl.classList.add('holiday');
       var sym = document.createElement('span');
       sym.className = 'calendar-day-sym';
       sym.textContent = getHolidaySymbol(holidayName);
       dayEl.appendChild(sym);
-      dayEl.title = holidayName;
+      dayEl.title = holidayName + ' (Federal Holiday – not counted as PTO)';
+    } else if (isFedHoliday) {
+      dayEl.classList.add('holiday');
+      dayEl.title = 'Federal Holiday – not counted as PTO';
     } else if (isApplied) {
       if (appliedType === 'VACATION') {
         dayEl.classList.add('applied-vacation');
