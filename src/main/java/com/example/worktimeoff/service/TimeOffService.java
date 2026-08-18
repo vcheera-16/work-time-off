@@ -7,6 +7,7 @@ import com.example.worktimeoff.repository.TimeOffRequestRepository;
 import com.example.worktimeoff.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
+import com.example.worktimeoff.util.BusinessDayCalculator;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -84,7 +85,7 @@ public class TimeOffService {
         
         long totalDays = 0;
         for (TimeOffRequest r : approved) {
-            totalDays += r.getEndDate().toEpochDay() - r.getStartDate().toEpochDay() + 1;
+            totalDays += BusinessDayCalculator.countBusinessDays(r.getStartDate(), r.getEndDate());
         }
         return totalDays;
     }
