@@ -60,7 +60,8 @@ public class UserController {
         try {
             String email = (String) body.get("email");
             String fullName = (String) body.get("fullName");
-            Integer managerId = ((Number) body.get("managerId")).intValue();
+            String role = body.get("role") != null ? ((String) body.get("role")).toUpperCase() : "EMPLOYEE";
+            Integer managerId = body.get("managerId") != null ? ((Number) body.get("managerId")).intValue() : null;
             
             if (email == null || email.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
@@ -68,12 +69,12 @@ public class UserController {
             if (fullName == null || fullName.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Full name is required"));
             }
-            if (managerId == null || managerId <= 0) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Valid manager ID is required"));
+            if (!"MANAGER".equalsIgnoreCase(role) && (managerId == null || managerId <= 0)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Valid manager ID is required for employees"));
             }
             
-            User newEmployee = userService.createEmployee(email, fullName, managerId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(newEmployee);
+            User newUser = userService.createUser(email, fullName, role, managerId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
