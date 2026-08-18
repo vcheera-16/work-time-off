@@ -107,16 +107,17 @@ function loadDashboardStats() {
 function loadCalendarData() {
   console.log('Pre-loading calendar data...');
   $.getJSON('/api/timeoff').done(function(data) {
-    window.appliedDates = data
-      .filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
-      .flatMap(r => {
-        var dates = [];
-        var start = new Date(r.startDate);
-        var end = new Date(r.endDate);
+    window.appliedDates = [];
+    window.appliedDateTypes = {};
+    data.filter(r => r.status === 'APPROVED' || r.status === 'PENDING')
+      .forEach(r => {
+        var start = new Date(r.startDate + 'T00:00:00');
+        var end = new Date(r.endDate + 'T00:00:00');
         for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          dates.push(d.toISOString().split('T')[0]);
+          var ds = d.toISOString().split('T')[0];
+          window.appliedDates.push(ds);
+          window.appliedDateTypes[ds] = r.type;
         }
-        return dates;
       });
     console.log('Applied dates loaded:', window.appliedDates);
   });
