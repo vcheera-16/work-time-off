@@ -1,7 +1,10 @@
 package com.example.worktimeoff.service;
 
 import com.example.worktimeoff.model.User;
+import com.example.worktimeoff.repository.TimeOffRequestRepository;
 import com.example.worktimeoff.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,12 +21,17 @@ import java.util.stream.Collectors;
 @Service
 public class UserService implements UserDetailsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TimeOffRequestRepository timeOffRequestRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       TimeOffRequestRepository timeOffRequestRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.timeOffRequestRepository = timeOffRequestRepository;
     }
 
     public Optional<User> findByEmail(String email) {
@@ -79,6 +87,24 @@ public class UserService implements UserDetailsService {
         if (role != null) u.setRole(role);
         if (managerId != null) u.setManagerId(managerId);
         return userRepository.save(u);
+    }
+
+    public void deleteUser(Integer id, Integer currentUserId) {
+        User u = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (id.equals(currentUserId)) {
+            throw new IllegalStateException("Cannot delete the currently logged-in user");
+        }
+        List<com.example.worktimeoff.model.TimeOffRequest> pending =
+                timeOffRequestRepository.findByUserId(id).stream()
+                        .filter(r -> "PENDING".equalsIgnoreCase(r.getStatus()))
+                        .collect(java.util.stream.Collectors.toList());
+        if (!pending.isEmpty()) {
+            throw new IllegalStateException("Cannot delete user with pending time off requests");
+        }
+        logger.info("Deleting user id={} email={}", u.getId(), u.getEmail());
+        timeOffRequestRepository.deleteAll(timeOffRequestRepository.findByUserId(id));
+        userRepository.delete(u);
     }
 
     @Override
