@@ -520,13 +520,16 @@ function loadUsers() {
     if ($.fn.dataTable.isDataTable('#usersTable')) {
       $('#usersTable').DataTable().destroy();
     }
-    var columns = [
-      { title: 'ID' }, { title: 'Name' }, { title: 'Email' }, { title: 'Role' },
-      { title: 'Manager ID' }
-    ];
+    var headerTitles = ['ID', 'Name', 'Email', 'Role', 'Manager ID'];
     if (isAdmin) {
-      columns.push({ title: 'Actions' });
+      headerTitles.push('Actions');
     }
+    $('#usersTable thead').html('<tr>' + headerTitles.map(function(title) {
+      return '<th>' + title + '</th>';
+    }).join('') + '</tr>');
+    var columns = headerTitles.map(function(title) {
+      return { title: title };
+    });
     $('#usersTable').DataTable({
       data: rows,
       columns: columns,
