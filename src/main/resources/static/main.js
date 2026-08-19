@@ -508,19 +508,29 @@ function loadTeamRequests() {
 function loadUsers() {
   console.log('Loading users...');
   $.getJSON('/api/users').done(function(data) {
+    var isAdmin = window.currentUser && window.currentUser.role === 'ADMIN';
     var rows = data.map(function(u) {
-      return [u.id, u.fullName || '-', u.email, u.role, u.managerId || '-'];
+      var row = [u.id, u.fullName || '-', u.email, u.role, u.managerId || '-'];
+      if (isAdmin) {
+        row.push('<button class="btn-delete-user" data-id="' + u.id + '" data-name="' + (u.fullName || u.email) + '">Delete</button>');
+      }
+      return row;
     });
-    
+
     if ($.fn.dataTable.isDataTable('#usersTable')) {
       $('#usersTable').DataTable().destroy();
     }
+    var columns = [
+      { title: 'ID' }, { title: 'Name' }, { title: 'Email' }, { title: 'Role' },
+      { title: 'Manager ID' }
+    ];
+    if (isAdmin) {
+      columns.push({ title: 'Actions' });
+    }
     $('#usersTable').DataTable({
       data: rows,
-      columns: [
-        { title: 'ID' }, { title: 'Name' }, { title: 'Email' }, { title: 'Role' },
-        { title: 'Manager ID' }
-      ]
+      columns: columns,
+      columnDefs: isAdmin ? [{ targets: -1, orderable: false }] : []
     });
 
     // Populate the manager dropdown for the create user form
@@ -539,6 +549,27 @@ function loadUsers() {
     showError('Failed to load users');
   });
 }
+
+// Handle delete user button click
+$(document).on('click', '.btn-delete-user', function() {
+  var userId = $(this).data('id');
+  var userName = $(this).data('name');
+  if (!confirm('Are you sure you want to delete user "' + userName + '"? This action cannot be undone.')) {
+    return;
+  }
+  var csrf = readCookie('XSRF-TOKEN');
+  $.ajax({
+    url: '/api/users/' + userId,
+    method: 'DELETE',
+    headers: csrf ? { 'X-XSRF-TOKEN': csrf } : {}
+  }).done(function() {
+    showSuccess('User deleted successfully.');
+    loadUsers();
+  }).fail(function(xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to delete user';
+    showError(msg);
+  });
+});
 
 function setupReportForm() {
   console.log('Setting up report form...');
